@@ -1,0 +1,97 @@
+Option Explicit
+Private WithEvents inboxItems As Outlook.Items
+Private Sub Application_Startup()
+  Dim outlookApp As Outlook.Application
+  Dim objectNS As Outlook.NameSpace
+  
+  Set outlookApp = Outlook.Application
+  Set objectNS = outlookApp.GetNamespace("MAPI")
+  Set inboxItems = objectNS.GetDefaultFolder(olFolderInbox).Items
+End Sub
+Private Sub inboxItems_ItemAdd(ByVal Item As Object)
+'On Error GoTo ErrorHandler
+Dim Msg As Outlook.MailItem
+Dim MessageInfo
+Dim Result
+
+Dim Sender
+Dim Sent
+Dim Recived
+Dim Subject
+Dim Message
+Dim pos, pos2, pos3 As Integer
+Dim conn As ADODB.Connection
+Dim rs As ADODB.Recordset
+Dim sConnString As String
+Dim StrQuery As String
+Dim JobNum
+
+    ' Create the connection string.
+    sConnString = "Provider=SQLOLEDB;Data Source=AG00072\SQLEXPRESS;" & _
+                  "Initial Catalog=TrelloJobs;" & _
+                  "Integrated Security=SSPI;"
+                  
+               
+    Set conn = New ADODB.Connection
+    Set rs = New ADODB.Recordset
+    
+    
+    
+    conn.Open sConnString
+    
+If TypeName(Item) = "MailItem" Then
+    
+Sender = Item.SenderEmailAddress
+Sent = Item.SentOn
+Subject = Item.Subject
+Message = Item.Body
+
+'find Job number
+
+JobNum = Trim(Mid(Subject, 9, 7))
+
+ pos = InStr(1, Item.Body, "Approved for Print")
+ pos2 = InStr(1, Item.Body, "Ammends")
+ pos3 = InStr(1, Item.Body, "Awaiting Review")
+ 
+ If pos > 0 Then
+   ' MsgBox ("Apporved to Print")
+    conn.Execute "UPDATE Jobs SET JobStatus='Signed Off'  WHERE JobNumber=" & JobNum
+    
+    
+ElseIf pos2 > 0 Then
+   ' MsgBox ("Ammends")
+     conn.Execute "UPDATE Jobs SET JobStatus='Ammends'  WHERE JobNumber=" & JobNum
+    
+ElseIf pos3 > 0 Then
+    'MsgBox ("Awaiting Review")
+     conn.Execute "UPDATE Jobs SET JobStatus='Awaiting Review'  WHERE JobNumber=" & JobNum
+    
+Else
+   ' MsgBox ("Non of above")
+End If
+
+    
+
+
+
+
+
+    
+    'MessageInfo = "" & _
+     '   "Sender : " & Item.SenderEmailAddress & vbCrLf & _
+      '  "Sent : " & Item.SentOn & vbCrLf & _
+       ' "Received : " & Item.ReceivedTime & vbCrLf & _
+        '"Subject : " & Item.Subject & vbCrLf & _
+        '"Size : " & Item.Size & vbCrLf & _
+       ' "Message Body : " & vbCrLf & Item.Body
+        
+        
+    'Result = MsgBox(MessageInfo, vbOKOnly, "New Message Received")
+End If
+ExitNewItem:
+    Exit Sub
+'ErrorHandler:
+ '   MsgBox Err.Number & " - " & Err.Description
+  '  Resume ExitNewItem
+End Sub
